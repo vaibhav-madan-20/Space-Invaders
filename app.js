@@ -1,5 +1,6 @@
 const KEY_RIGHT = 39;
 const KEY_LEFT = 37;
+const KEY_SPACE = 32;
 
 const GAME_WIDTH = 800;
 const GAME_HEIGHT = 600;
@@ -9,6 +10,8 @@ const STATE = {
     y_pos: 0,
     move_right: false,
     move_left: false,
+    shoot: false,
+    lasers: [],
     spaceship_width: 50
 }
 
@@ -21,6 +24,19 @@ function setSize($element, width) {
     $element.style.width = `${width}px`;
     $element.style.height = "auto";
 }
+
+function bound(x) {
+    if (x >= GAME_WIDTH - STATE.spaceship_width) {
+        STATE.x_pos = GAME_WIDTH - STATE.spaceship_width;
+        return GAME_WIDTH - STATE.spaceship_width
+    } if (x <= 0) {
+        STATE.x_pos = 0;
+        return 0
+    } else {
+        return x;
+    }
+}
+
 
 // Player
 function createPlayer($container) {
@@ -38,35 +54,74 @@ function updatePlayer() {
     if (STATE.move_left) {
         STATE.x_pos -= 3;
     }
-    else if (STATE.move_right) {
+    if (STATE.move_right) {
         STATE.x_pos += 3;
     }
+    if (STATE.shoot) {
+        createLaser($container, STATE.x_pos - STATE.spaceship_width / 2, STATE.y_pos);
+    }
     const $player = document.querySelector(".player");
-    setPosition($player, STATE.x_pos, STATE.y_pos);
+    setPosition($player, bound(STATE.x_pos), STATE.y_pos);
 }
+
+
+// Player Laser
+function createLaser($container, x, y) {
+    const $laser = document.createElement("img");
+    $laser.src = "img/laser.png";
+    $laser.className = "laser";
+    $container.appendChild($laser);
+    const laser = { x, y, $laser };
+    STATE.lasers.push(laser);
+    setPosition($laser, x, y);
+}
+
+function updateLaser($container) {
+    const lasers = STATE.lasers;
+    for (let i = 0; i < lasers.length; i++) {
+        const laser = lasers[i];
+        laser.y -= 2;
+        // if (laser.y < 0) {
+        //     deleteLaser(lasers, laser, laser.$laser);
+        // }
+        setPosition(laser.$laser, laser.x, laser.y);
+    }
+}
+
 
 // Key Presses
 function KeyPress(event) {
     if (event.keyCode === KEY_RIGHT) {
         STATE.move_right = true;
         console.log("Right key is pressed");
-    } else if (event.keyCode === KEY_LEFT) {
+    }
+    else if (event.keyCode === KEY_LEFT) {
         STATE.move_left = true;
         console.log("Left key is pressed");
+    }
+    else if (event.keyCode === KEY_SPACE) {
+        STATE.shoot = true;
+        console.log("Spacebar is pressed");
     }
 }
 
 function KeyRelease(event) {
     if (event.keyCode === KEY_RIGHT) {
         STATE.move_right = false;
-    } else if (event.keyCode === KEY_LEFT) {
+    } 
+    else if (event.keyCode === KEY_LEFT) {
         STATE.move_left = false;
+    }
+    else if (event.keyCode == KEY_SPACE) {
+        STATE.shoot = false;
     }
 }
 
 // Main Update Function
 function update() {
     updatePlayer();
+    updateLaser();
+
     window.requestAnimationFrame(update);
 }
 

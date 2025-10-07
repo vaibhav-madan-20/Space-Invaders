@@ -58,3 +58,11 @@ footer {
   flex-direction: column;
   height: 100%;
 }
+
+.main .laser {
+  position: absolute;
+  margin-left: -2.5px;
+  height: 25px;
+  /* default z-index is 0*/
+  z-index: -1;
+}

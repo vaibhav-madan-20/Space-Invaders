@@ -66,3 +66,7 @@ footer {
   /* default z-index is 0*/
   z-index: -1;
 }
+
+.main .enemy {
+  position: absolute;
+}

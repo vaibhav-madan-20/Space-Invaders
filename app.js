@@ -12,8 +12,11 @@ const STATE = {
     move_left: false,
     shoot: false,
     lasers: [],
+    enemies: [],
     spaceship_width: 50,
-    cooldown: 0
+    enemy_width: 50,
+    cooldown: 0,
+    number_of_enemies: 16
 }
 
 // General purpose functions
@@ -30,10 +33,12 @@ function bound(x) {
     if (x >= GAME_WIDTH - STATE.spaceship_width) {
         STATE.x_pos = GAME_WIDTH - STATE.spaceship_width;
         return GAME_WIDTH - STATE.spaceship_width
-    } if (x <= 0) {
+    }
+    else if (x <= 0) {
         STATE.x_pos = 0;
         return 0
-    } else {
+    }
+    else {
         return x;
     }
 }
@@ -103,6 +108,39 @@ function deleteLaser(lasers, laser, $laser) {
 }
 
 
+// Enemy 
+function createEnemy($container, x, y) {
+    const $enemy = document.createElement("img");
+    $enemy.src = "img/ufo.png";
+    $enemy.className = "enemy";
+    $container.appendChild($enemy);
+    const enemy_cooldown = Math.floor(Math.random() * 100);
+    const enemy = { x, y, $enemy, enemy_cooldown }
+    STATE.enemies.push(enemy);
+    setSize($enemy, STATE.enemy_width);
+    setPosition($enemy, x, y)
+}
+
+function updateEnemies($container) {
+    const dx = Math.sin(Date.now() / 1000) * 40;
+    const dy = Math.cos(Date.now() / 1000) * 30;
+    const enemies = STATE.enemies;
+    for (let i = 0; i < enemies.length; i++) {
+        const enemy = enemies[i];
+        var a = enemy.x + dx;
+        var b = enemy.y + dy;
+        setPosition(enemy.$enemy, a, b);
+    }
+}
+
+function createEnemies($container) {
+    for (var i = 0; i <= STATE.number_of_enemies / 2; i++) {
+        createEnemy($container, i * 80, 100);
+    } for (var i = 0; i <= STATE.number_of_enemies / 2; i++) {
+        createEnemy($container, i * 80, 180);
+    }
+}
+
 // Key Presses
 function KeyPress(event) {
     if (event.keyCode === KEY_RIGHT) {
@@ -135,6 +173,7 @@ function KeyRelease(event) {
 function update() {
     updatePlayer();
     updateLaser();
+    updateEnemies();
 
     window.requestAnimationFrame(update);
 }
@@ -143,6 +182,7 @@ function update() {
 // Initialize the Game
 const $container = document.querySelector(".main");
 createPlayer($container);
+createEnemies($container);
 
 // Key Press Event Listener
 window.addEventListener("keydown", KeyPress);

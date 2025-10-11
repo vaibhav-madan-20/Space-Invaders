@@ -1,30 +1,45 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Space Invaders</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css" />
 </head>
 <body>
     <div class="wrap">
-        <header>Space Invaders</header>
+        <header class="game-header">
+            <div class="title">SPACE INVADERS</div>
+            <div class="header-right">
+                <div id="playerNameDisplay" class="player-name">Player: —</div>
+                <div id="scoreDisplay" class="score">Score: 0</div>
+            </div>
+        </header>
+
         <div class="game-wrapper">
             <div class="main"></div>
-                <div class="lose">
-                    <h1>GAME OVER</h1>
-                    <h2>Better luck next time!</h2>
+
+            <div class="overlay lose">
+                <h1>GAME OVER</h1>
+                <h2>Better luck next time!</h2>
+                <div class="buttons-row">
                     <button class="btn" onclick="window.location.reload()">Restart</button>
+                    <button class="btn" onclick="window.location.href='leaderboard.html'">Leaderboard</button>
                 </div>
-                <div class="win">
-                    <h1>YOU WIN!</h1>
-                    <h2>Winner winner chicken dinner!</h2>
+            </div>
+
+            <div class="overlay win">
+                <h1>YOU WIN!</h1>
+                <h2>Winner winner chicken dinner!</h2>
+                <div class="buttons-row">
                     <button class="btn" onclick="window.location.reload()">Restart</button>
+                    <button class="btn" onclick="window.location.href='leaderboard.html'">Leaderboard</button>
                 </div>
+            </div>
         </div>
+
         <script src="app.js"></script>
-        <footer></footer>
     </div>
 </body>
 </html>

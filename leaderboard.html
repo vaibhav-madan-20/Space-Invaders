@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Leaderboard - Space Invaders</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background: radial-gradient(circle at top, #000010, #000);
+        font-family: "Orbitron", sans-serif;
+        color: #00ffee;
+        text-align: center;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+      }
+      h1 {
+        font-size: 3rem;
+        text-shadow: 0 0 10px #00ffee, 0 0 30px #00ffee;
+        margin-bottom: 30px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 60%;
+        max-width: 600px;
+        margin-bottom: 30px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 15px;
+        overflow: hidden;
+      }
+      th,
+      td {
+        padding: 15px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+      }
+      th {
+        background: rgba(0, 255, 238, 0.2);
+      }
+      tr:last-child td {
+        border-bottom: none;
+      }
+      .btn {
+        background: linear-gradient(90deg, #00ffee, #0077ff);
+        color: #000;
+        border: none;
+        padding: 15px 40px;
+        border-radius: 40px;
+        font-size: 1.2rem;
+        cursor: pointer;
+        text-transform: uppercase;
+        transition: all 0.3s ease;
+        box-shadow: 0 0 20px #00ffee;
+      }
+      .btn:hover {
+        background: linear-gradient(90deg, #0077ff, #00ffee);
+        transform: scale(1.1);
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Leaderboard</h1>
+    <table id="leaderboardTable">
+      <tr>
+        <th>Rank</th>
+        <th>Player</th>
+        <th>Score</th>
+      </tr>
+    </table>
+    <button class="btn" onclick="window.location.href='start_page.html'">
+      Back to Start
+    </button>
+
+    <script>
+      const leaderboard = JSON.parse(localStorage.getItem("leaderboard")) || [];
+      const table = document.getElementById("leaderboardTable");
+
+      leaderboard.forEach((entry, index) => {
+        const row = document.createElement("tr");
+        row.innerHTML = `<td>${index + 1}</td><td>${entry.name}</td><td>${
+          entry.score
+        }</td>`;
+        table.appendChild(row);
+      });
+    </script>
+  </body>
+</html>

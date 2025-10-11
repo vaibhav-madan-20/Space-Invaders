@@ -21,7 +21,8 @@ const STATE = {
     cooldown: 0,
     number_of_enemies: 16,
     enemy_cooldown: 0,
-    gameOver: false
+    gameOver: false,
+    scoreSaved: false // <-- guard flag to ensure score is saved only once
 }
 
 // General purpose functions
@@ -37,10 +38,10 @@ function setSize($element, width) {
 function bound(x) {
     if (x >= GAME_WIDTH - STATE.spaceship_width) {
         STATE.x_pos = GAME_WIDTH - STATE.spaceship_width;
-        return GAME_WIDTH - STATE.spaceship_width
+        return GAME_WIDTH - STATE.spaceship_width;
     } if (x <= 0) {
         STATE.x_pos = 0;
-        return 0
+        return 0;
     } else {
         return x;
     }
@@ -60,10 +61,10 @@ function createEnemy($container, x, y) {
     $enemy.className = "enemy";
     $container.appendChild($enemy);
     const enemy_cooldown = Math.floor(Math.random() * 100);
-    const enemy = { x, y, $enemy, enemy_cooldown }
+    const enemy = { x, y, $enemy, enemy_cooldown };
     STATE.enemies.push(enemy);
     setSize($enemy, STATE.enemy_width);
-    setPosition($enemy, x, y)
+    setPosition($enemy, x, y);
 }
 
 function updateEnemies($container) {
@@ -72,15 +73,16 @@ function updateEnemies($container) {
     const enemies = STATE.enemies;
     for (let i = 0; i < enemies.length; i++) {
         const enemy = enemies[i];
-        var a = enemy.x + dx;
-        var b = enemy.y + dy;
+        const a = enemy.x + dx;
+        const b = enemy.y + dy;
         setPosition(enemy.$enemy, a, b);
-        enemy.cooldown = Math.random(0, 100);
-        if (enemy.enemy_cooldown == 0) {
-            createEnemyLaser($container, a, b);
-            enemy.enemy_cooldown = Math.floor(Math.random() * 50) + 100;
-        }
+
+        // enemy firing logic (reduce cooldown; when <=0 fire and reset)
         enemy.enemy_cooldown -= 0.5;
+        if (enemy.enemy_cooldown <= 0) {
+            createEnemyLaser($container, a, b);
+            enemy.enemy_cooldown = Math.floor(Math.random() * 80) + 60;
+        }
     }
 }
 
@@ -94,19 +96,30 @@ function createPlayer($container) {
     $container.appendChild($player);
     setPosition($player, STATE.x_pos, STATE.y_pos);
     setSize($player, STATE.spaceship_width);
+
+    // show stored player name in header if available
+    const pname = localStorage.getItem("playerName");
+    const nameDisplay = document.getElementById("playerNameDisplay");
+    if (nameDisplay) {
+        nameDisplay.textContent = "Player: " + (pname || "Unknown");
+    }
 }
 
 function updatePlayer() {
     if (STATE.move_left) {
         STATE.x_pos -= 3;
-    } if (STATE.move_right) {
+    }
+    if (STATE.move_right) {
         STATE.x_pos += 3;
-    } if (STATE.shoot && STATE.cooldown == 0) {
-        createLaser($container, STATE.x_pos - STATE.spaceship_width / 2, STATE.y_pos);
+    }
+    if (STATE.shoot && STATE.cooldown == 0) {
+        createLaser($container, STATE.x_pos - STATE.spaceship_width / 2 + 10, STATE.y_pos);
         STATE.cooldown = 30;
     }
     const $player = document.querySelector(".player");
-    setPosition($player, bound(STATE.x_pos), STATE.y_pos - 10);
+    if ($player) {
+        setPosition($player, bound(STATE.x_pos), STATE.y_pos - 10);
+    }
     if (STATE.cooldown > 0) {
         STATE.cooldown -= 0.5;
     }
@@ -125,23 +138,33 @@ function createLaser($container, x, y) {
 
 function updateLaser($container) {
     const lasers = STATE.lasers;
-    for (let i = 0; i < lasers.length; i++) {
+    // iterate backwards to safely remove while iterating
+    for (let i = lasers.length - 1; i >= 0; i--) {
         const laser = lasers[i];
-        laser.y -= 2;
+        laser.y -= 6; // faster laser
         if (laser.y < 0) {
             deleteLaser(lasers, laser, laser.$laser);
+            continue;
         }
         setPosition(laser.$laser, laser.x, laser.y);
+
         const laser_rectangle = laser.$laser.getBoundingClientRect();
         const enemies = STATE.enemies;
-        for (let j = 0; j < enemies.length; j++) {
+        // iterate backwards through enemies
+        for (let j = enemies.length - 1; j >= 0; j--) {
             const enemy = enemies[j];
             const enemy_rectangle = enemy.$enemy.getBoundingClientRect();
             if (collideRect(enemy_rectangle, laser_rectangle)) {
+                // remove laser and enemy
                 deleteLaser(lasers, laser, laser.$laser);
-                const index = enemies.indexOf(enemy);
-                enemies.splice(index, 1);
-                $container.removeChild(enemy.$enemy);
+                enemies.splice(j, 1);
+                if (enemy.$enemy && enemy.$enemy.parentNode === $container) {
+                    $container.removeChild(enemy.$enemy);
+                }
+                // increase score and update HUD
+                score += 10;
+                updateScoreHUD(score);
+                break; // laser destroyed, stop checking other enemies
             }
         }
     }
@@ -160,16 +183,20 @@ function createEnemyLaser($container, x, y) {
 
 function updateEnemyLaser($container) {
     const enemyLasers = STATE.enemyLasers;
-    for (let i = 0; i < enemyLasers.length; i++) {
+    for (let i = enemyLasers.length - 1; i >= 0; i--) {
         const enemyLaser = enemyLasers[i];
-        enemyLaser.y += 2;
+        enemyLaser.y += 3.5;
         if (enemyLaser.y > GAME_HEIGHT - 30) {
             deleteLaser(enemyLasers, enemyLaser, enemyLaser.$enemyLaser);
+            continue;
         }
         const enemyLaser_rectangle = enemyLaser.$enemyLaser.getBoundingClientRect();
-        const spaceship_rectangle = document.querySelector(".player").getBoundingClientRect();
-        if (collideRect(spaceship_rectangle, enemyLaser_rectangle)) {
-            STATE.gameOver = true;
+        const spaceshipEl = document.querySelector(".player");
+        if (spaceshipEl) {
+            const spaceship_rectangle = spaceshipEl.getBoundingClientRect();
+            if (collideRect(spaceship_rectangle, enemyLaser_rectangle)) {
+                STATE.gameOver = true;
+            }
         }
         setPosition(enemyLaser.$enemyLaser, enemyLaser.x + STATE.enemy_width / 2, enemyLaser.y + 15);
     }
@@ -178,8 +205,10 @@ function updateEnemyLaser($container) {
 // Delete Laser
 function deleteLaser(lasers, laser, $laser) {
     const index = lasers.indexOf(laser);
-    lasers.splice(index, 1);
-    $container.removeChild($laser);
+    if (index > -1) lasers.splice(index, 1);
+    if ($laser && $laser.parentNode) {
+        $laser.parentNode.removeChild($laser);
+    }
 }
 
 // Key Presses
@@ -203,6 +232,24 @@ function KeyRelease(event) {
     }
 }
 
+// Score + leaderboard helpers
+let score = 0; // track aliens killed
+const playerName = localStorage.getItem("playerName") || "Unknown";
+
+function updateScoreHUD(value) {
+    const scoreEl = document.getElementById("scoreDisplay");
+    if (scoreEl) scoreEl.textContent = "Score: " + value;
+}
+
+function saveScore(name, scoreToSave) {
+    // push and keep top 10
+    let leaderboard = JSON.parse(localStorage.getItem("leaderboard")) || [];
+    leaderboard.push({ name, score: scoreToSave });
+    leaderboard.sort((a, b) => b.score - a.score);
+    leaderboard = leaderboard.slice(0, 10);
+    localStorage.setItem("leaderboard", JSON.stringify(leaderboard));
+}
+
 // Main Update Function
 function update() {
     updatePlayer();
@@ -210,19 +257,28 @@ function update() {
     updateLaser($container);
     updateEnemyLaser($container);
 
-    window.requestAnimationFrame(update);
-
-    if (STATE.gameOver) {
+    // Only save once per game end (guard with STATE.scoreSaved)
+    if (STATE.gameOver && !STATE.scoreSaved) {
+        saveScore(playerName, score);
+        STATE.scoreSaved = true;
         document.querySelector(".lose").style.display = "block";
-    } if (STATE.enemies.length == 0) {
+    }
+
+    if (STATE.enemies.length == 0 && !STATE.scoreSaved) {
+        saveScore(playerName, score);
+        STATE.scoreSaved = true;
         document.querySelector(".win").style.display = "block";
     }
+
+    window.requestAnimationFrame(update);
 }
 
+// Create enemies in two rows
 function createEnemies($container) {
-    for (var i = 0; i <= STATE.number_of_enemies / 2; i++) {
+    for (var i = 0; i < STATE.number_of_enemies / 2; i++) {
         createEnemy($container, i * 80, 100);
-    } for (var i = 0; i <= STATE.number_of_enemies / 2; i++) {
+    }
+    for (var i = 0; i < STATE.number_of_enemies / 2; i++) {
         createEnemy($container, i * 80, 180);
     }
 }
@@ -231,6 +287,9 @@ function createEnemies($container) {
 const $container = document.querySelector(".main");
 createPlayer($container);
 createEnemies($container);
+
+// update initial HUD
+updateScoreHUD(score);
 
 // Key Press Event Listener
 window.addEventListener("keydown", KeyPress);

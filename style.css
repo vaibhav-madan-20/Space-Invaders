@@ -59,14 +59,15 @@ body {
 }
 
 .main {
-  width: 800px;
-  height: 600px;
+  width: 800px;    /* default, will be overridden by JS inline styles */
+  height: 600px;   /* default, will be overridden by JS inline styles */
   background: url(img/background-blue.png);
   animation: scroll-background 5s linear infinite;
   box-shadow: 0 2px 20px rgba(0, 0, 0, 0.6);
   position: relative;
   overflow: hidden;
   z-index: 0;
+  background-size: 100% 100%; /* ensure background fills resized container */
 }
 
 /* Lasers / enemies */
@@ -95,7 +96,7 @@ body {
   position: absolute;
   background: rgba(20,20,30,0.95);
   color: white;
-  padding: 30px 60px;
+  padding: 24px 36px; /* reduced default padding slightly */
   box-shadow: 0 8px 40px rgba(0, 0, 0, 0.7);
   border-radius: 12px;
   text-align: center;
@@ -105,19 +106,24 @@ body {
   left: 50%;
   top: 40%;
   transform: translate(-50%, -40%);
-  width: fit-content;
+  width: 50%;
   max-width: calc(100% - 40px);
 }
 
 .overlay h1 {
   margin-bottom: 8px;
-  font-size: 2rem;
+  font-size: 1.2em;
 }
 
 .overlay h2 {
   margin-bottom: 16px;
   font-weight: 400;
   color: #ddd;
+  font-size: 1.1em;
+}
+
+.overlay .btn {
+  font-size: 0.9em;
 }
 
 .buttons-row {
@@ -155,4 +161,23 @@ body {
 @keyframes scroll-background {
   from { background-position-y: 0px; }
   to   { background-position-y: 256px; }
+}
+
+
+
+
+/* smaller screens: reduce overlay padding and text size */
+@media (max-width: 480px) {
+  .overlay {
+    padding: 14px 18px;
+    top: 45%;
+    left: 50%;
+    transform: translate(-50%, -45%);
+    max-width: 92vw;
+    width: calc(100% - 24px);
+  }
+  .overlay h1 { font-size: 1.4rem; margin-bottom: 6px; }
+  .overlay h2 { font-size: 0.95rem; margin-bottom: 10px; }
+  .buttons-row { gap: 8px; }
+  .btn { padding: 8px 12px; font-size: 0.9rem; border-radius: 20px; }
 }

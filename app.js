@@ -4,8 +4,12 @@ const KEY_RIGHT = 39;
 const KEY_LEFT = 37;
 const KEY_SPACE = 32;
 
-const GAME_WIDTH = 800;
-const GAME_HEIGHT = 600;
+const BASE_GAME_WIDTH = 800;
+const BASE_GAME_HEIGHT = 600;
+
+// logical game dimensions (base)
+const GAME_WIDTH = BASE_GAME_WIDTH;
+const GAME_HEIGHT = BASE_GAME_HEIGHT;
 
 const STATE = {
     x_pos: 0,
@@ -16,22 +20,27 @@ const STATE = {
     lasers: [],
     enemyLasers: [],
     enemies: [],
-    spaceship_width: 50,
+    spaceship_width: 50, // logical units (will be scaled for display)
     enemy_width: 50,
     cooldown: 0,
-    number_of_enemies: 16,
+    number_of_enemies: 18,
     enemy_cooldown: 0,
     gameOver: false,
-    scoreSaved: false // <-- guard flag to ensure score is saved only once
+    scoreSaved: false, // ensure score saved only once
+    scale: 1, // computed based on available space
+    allowEnemyFire: false // will be enabled after 1000ms
 }
 
-// General purpose functions
+// General purpose functions (size/position will consider STATE.scale)
 function setPosition($element, x, y) {
-    $element.style.transform = `translate(${x}px, ${y}px)`;
+    const sx = x * STATE.scale;
+    const sy = y * STATE.scale;
+    $element.style.transform = `translate(${sx}px, ${sy}px)`;
 }
 
 function setSize($element, width) {
-    $element.style.width = `${width}px`;
+    const w = Math.max(1, width * STATE.scale);
+    $element.style.width = `${w}px`;
     $element.style.height = "auto";
 }
 
@@ -68,6 +77,10 @@ function createEnemy($container, x, y) {
 }
 
 function updateEnemies($container) {
+    // if game ended -> do not update enemy positions or cooldowns or fire
+    if (STATE.gameOver) return;
+
+    // smooth group motion using time
     const dx = Math.sin(Date.now() / 1000) * 40;
     const dy = Math.cos(Date.now() / 1000) * 30;
     const enemies = STATE.enemies;
@@ -77,9 +90,9 @@ function updateEnemies($container) {
         const b = enemy.y + dy;
         setPosition(enemy.$enemy, a, b);
 
-        // enemy firing logic (reduce cooldown; when <=0 fire and reset)
+        // enemy firing logic (only if allowed after initial delay)
         enemy.enemy_cooldown -= 0.5;
-        if (enemy.enemy_cooldown <= 0) {
+        if (STATE.allowEnemyFire && enemy.enemy_cooldown <= 0) {
             createEnemyLaser($container, a, b);
             enemy.enemy_cooldown = Math.floor(Math.random() * 80) + 60;
         }
@@ -106,6 +119,10 @@ function createPlayer($container) {
 }
 
 function updatePlayer() {
+    // freeze movement/shooting when game over
+    if (STATE.gameOver) return;
+
+    // movement (logical units)
     if (STATE.move_left) {
         STATE.x_pos -= 3;
     }
@@ -119,9 +136,11 @@ function updatePlayer() {
     const $player = document.querySelector(".player");
     if ($player) {
         setPosition($player, bound(STATE.x_pos), STATE.y_pos - 10);
+        setSize($player, STATE.spaceship_width);
     }
     if (STATE.cooldown > 0) {
         STATE.cooldown -= 0.5;
+        if (STATE.cooldown < 0) STATE.cooldown = 0;
     }
 }
 
@@ -134,14 +153,17 @@ function createLaser($container, x, y) {
     const laser = { x, y, $laser };
     STATE.lasers.push(laser);
     setPosition($laser, x, y);
+    setSize($laser, 6);
 }
 
 function updateLaser($container) {
+    // freeze lasers in place when game over
+    if (STATE.gameOver) return;
+
     const lasers = STATE.lasers;
-    // iterate backwards to safely remove while iterating
     for (let i = lasers.length - 1; i >= 0; i--) {
         const laser = lasers[i];
-        laser.y -= 6; // faster laser
+        laser.y -= 6; // logical speed
         if (laser.y < 0) {
             deleteLaser(lasers, laser, laser.$laser);
             continue;
@@ -150,7 +172,6 @@ function updateLaser($container) {
 
         const laser_rectangle = laser.$laser.getBoundingClientRect();
         const enemies = STATE.enemies;
-        // iterate backwards through enemies
         for (let j = enemies.length - 1; j >= 0; j--) {
             const enemy = enemies[j];
             const enemy_rectangle = enemy.$enemy.getBoundingClientRect();
@@ -164,7 +185,7 @@ function updateLaser($container) {
                 // increase score and update HUD
                 score += 10;
                 updateScoreHUD(score);
-                break; // laser destroyed, stop checking other enemies
+                break; // laser destroyed
             }
         }
     }
@@ -178,10 +199,14 @@ function createEnemyLaser($container, x, y) {
     $container.appendChild($enemyLaser);
     const enemyLaser = { x, y, $enemyLaser };
     STATE.enemyLasers.push(enemyLaser);
-    setPosition($enemyLaser, x, y);
+    setPosition($enemyLaser, x + STATE.enemy_width / 2, y + 15);
+    setSize($enemyLaser, 6);
 }
 
 function updateEnemyLaser($container) {
+    // freeze enemy lasers when game over
+    if (STATE.gameOver) return;
+
     const enemyLasers = STATE.enemyLasers;
     for (let i = enemyLasers.length - 1; i >= 0; i--) {
         const enemyLaser = enemyLasers[i];
@@ -213,6 +238,7 @@ function deleteLaser(lasers, laser, $laser) {
 
 // Key Presses
 function KeyPress(event) {
+    if (STATE.gameOver) return; // ignore inputs after game end
     if (event.keyCode === KEY_RIGHT) {
         STATE.move_right = true;
     } else if (event.keyCode === KEY_LEFT) {
@@ -242,12 +268,52 @@ function updateScoreHUD(value) {
 }
 
 function saveScore(name, scoreToSave) {
-    // push and keep top 10
     let leaderboard = JSON.parse(localStorage.getItem("leaderboard")) || [];
     leaderboard.push({ name, score: scoreToSave });
     leaderboard.sort((a, b) => b.score - a.score);
     leaderboard = leaderboard.slice(0, 10);
     localStorage.setItem("leaderboard", JSON.stringify(leaderboard));
+}
+
+// Responsive scaling: compute STATE.scale and update sizes of existing elements
+function computeScale() {
+    const header = document.querySelector('.game-header');
+    const headerHeight = header ? header.offsetHeight : 0;
+    const availableWidth = Math.min(window.innerWidth, document.documentElement.clientWidth) - 40; // some padding
+    const availableHeight = window.innerHeight - headerHeight - 40;
+
+    const scaleW = Math.max(0.35, Math.min(1, availableWidth / BASE_GAME_WIDTH)); // limit scale range
+    const scaleH = Math.max(0.35, Math.min(1, availableHeight / BASE_GAME_HEIGHT));
+    STATE.scale = Math.min(scaleW, scaleH);
+
+    // Resize the actual container so background and bottom alignment match
+    if ($container) {
+        const newW = Math.round(BASE_GAME_WIDTH * STATE.scale);
+        const newH = Math.round(BASE_GAME_HEIGHT * STATE.scale);
+        $container.style.width = newW + 'px';
+        $container.style.height = newH + 'px';
+        // ensure background image fills container
+        $container.style.backgroundSize = '100% 100%';
+    }
+
+    // After scale changed, make sure all elements are sized/positioned using setSize/setPosition
+    const playerEl = document.querySelector('.player');
+    if (playerEl) {
+        setSize(playerEl, STATE.spaceship_width);
+        setPosition(playerEl, STATE.x_pos, STATE.y_pos - 10);
+    }
+    STATE.enemies.forEach(enemy => {
+        setSize(enemy.$enemy, STATE.enemy_width);
+        setPosition(enemy.$enemy, enemy.x, enemy.y);
+    });
+    STATE.lasers.forEach(l => {
+        setSize(l.$laser, 6);
+        setPosition(l.$laser, l.x, l.y);
+    });
+    STATE.enemyLasers.forEach(el => {
+        setSize(el.$enemyLaser, 6);
+        setPosition(el.$enemyLaser, el.x, el.y);
+    });
 }
 
 // Main Update Function
@@ -261,13 +327,23 @@ function update() {
     if (STATE.gameOver && !STATE.scoreSaved) {
         saveScore(playerName, score);
         STATE.scoreSaved = true;
-        document.querySelector(".lose").style.display = "block";
+        // show lose overlay
+        const loseEl = document.querySelector(".lose");
+        if (loseEl) loseEl.style.display = "block";
+
+        // remove input listeners as extra guard
+        window.removeEventListener("keydown", KeyPress);
+        window.removeEventListener("keyup", KeyRelease);
     }
 
     if (STATE.enemies.length == 0 && !STATE.scoreSaved) {
         saveScore(playerName, score);
         STATE.scoreSaved = true;
-        document.querySelector(".win").style.display = "block";
+        const winEl = document.querySelector(".win");
+        if (winEl) winEl.style.display = "block";
+
+        window.removeEventListener("keydown", KeyPress);
+        window.removeEventListener("keyup", KeyRelease);
     }
 
     window.requestAnimationFrame(update);
@@ -294,4 +370,14 @@ updateScoreHUD(score);
 // Key Press Event Listener
 window.addEventListener("keydown", KeyPress);
 window.addEventListener("keyup", KeyRelease);
+
+// compute scale once and on resize
+computeScale();
+window.addEventListener('resize', computeScale);
+
+// Delay enemy firing by 1 second from game start
+setTimeout(() => {
+    STATE.allowEnemyFire = true;
+}, 1000);
+
 update();
